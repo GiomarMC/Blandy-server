@@ -3,8 +3,23 @@ import os
 import google.generativeai as genai
 
 app = Flask(__name__)
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-model = genai.GenerativeModel('gemini-1.5-flash')
+
+# --- CONFIGURACIÓN DE GEMINI (GOOGLE) ---
+GOOGLE_API_KEY = os.environ.get("GEMINI_API_KEY")
+genai.configure(api_key=GOOGLE_API_KEY)
+
+try:
+    print("🔍 Buscando modelos disponibles para tu API Key...")
+    for m in genai.list_models():
+        if 'generateContent' in m.supported_generation_methods:
+            print(f"   - Modelo disponible: {m.name}")
+except Exception as e:
+    print(f"⚠️ No se pudieron listar los modelos: {e}")
+
+try:
+    model = genai.GenerativeModel('gemini-pro')
+except:
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
 
 @app.route('/')
@@ -25,7 +40,8 @@ def analizar_jugador():
 
         prompt_completo = (
             "Eres un psicólogo experto en análisis de comportamiento en videojuegos. "
-            "Analiza los siguientes datos y da un perfil breve:\n\n" + prompt_roblox
+            "Responde de forma breve y directa (máximo 2 lineas). "
+            "Analiza estos datos:\n\n" + prompt_roblox
         )
 
         response = model.generate_content(prompt_completo)
