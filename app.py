@@ -1,21 +1,15 @@
 from flask import Flask, request, jsonify
-from openai import OpenAI
-
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
+import google.generativeai as genai
 
 app = Flask(__name__)
-
-client = OpenAI(
-    api_key=os.environ.get("OPENAI_API_KEY"),
-)
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 
 @app.route('/')
 def home():
-    return "¡Servidor de IA para Roblox está ACTIVO!", 200
+    return "¡Servidor con GEMINI (Google) activo!", 200
 
 
 @app.route('/analizar_jugador', methods=['POST'])
@@ -29,19 +23,15 @@ def analizar_jugador():
         if not prompt_roblox:
             return jsonify({"error": "No se recibió prompt"}), 400
 
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "Eres un psicólogo experto en análisis de comportamiento en videojuegos."},
-                {"role": "user", "content": prompt_roblox}
-            ],
-            max_tokens=150,
-            temperature=0.7
+        prompt_completo = (
+            "Eres un psicólogo experto en análisis de comportamiento en videojuegos. "
+            "Analiza los siguientes datos y da un perfil breve:\n\n" + prompt_roblox
         )
 
-        analisis = response.choices[0].message.content.strip()
+        response = model.generate_content(prompt_completo)
+        analisis = response.text
 
-        print("✅ Análisis generado correctamente")
+        print("✅ Análisis de Gemini generado correctamente")
         return jsonify({"respuesta": analisis})
 
     except Exception as e:
