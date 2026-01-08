@@ -4,28 +4,32 @@ import google.generativeai as genai
 
 app = Flask(__name__)
 
-# --- CONFIGURACIÓN DE GEMINI (GOOGLE) ---
 GOOGLE_API_KEY = os.environ.get("GEMINI_API_KEY")
 genai.configure(api_key=GOOGLE_API_KEY)
 
-try:
-    print("🔍 Buscando modelos disponibles para tu API Key...")
-    for m in genai.list_models():
-        if 'generateContent' in m.supported_generation_methods:
-            print(f"   - Modelo disponible: {m.name}")
-except Exception as e:
-    print(f"⚠️ No se pudieron listar los modelos: {e}")
+def obtener_modelo_valido():
+    try:
+        print("🔍 Buscando modelos disponibles...")
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                print(f"   ✅ Encontrado: {m.name}")
+                if 'gemini' in m.name:
+                    return m.name
+        return "models/gemini-1.5-flash"
+    except Exception as e:
+        print(f"⚠️ Error listando modelos: {e}")
+        return "gemini-pro"
 
-try:
-    model = genai.GenerativeModel('gemini-pro')
-except:
-    model = genai.GenerativeModel('gemini-1.5-flash')
+
+NOMBRE_MODELO = obtener_modelo_valido()
+print(f"🤖 MODELO SELECCIONADO: {NOMBRE_MODELO}")
+
+model = genai.GenerativeModel(NOMBRE_MODELO)
 
 
 @app.route('/')
 def home():
-    return "¡Servidor con GEMINI (Google) activo!", 200
-
+    return f"¡Servidor ACTIVO! Usando modelo: {NOMBRE_MODELO}", 200
 
 @app.route('/analizar_jugador', methods=['POST'])
 def analizar_jugador():
@@ -33,25 +37,24 @@ def analizar_jugador():
         data = request.json
         prompt_roblox = data.get('prompt', '')
 
-        print(f"📩 Recibido prompt de Roblox (Longitud: {len(prompt_roblox)})")
+        print(f"📩 Recibido prompt (Longitud: {len(prompt_roblox)})")
 
         if not prompt_roblox:
             return jsonify({"error": "No se recibió prompt"}), 400
 
         prompt_completo = (
-            "Eres un psicólogo experto en análisis de comportamiento en videojuegos. "
-            "Responde de forma breve y directa (máximo 2 lineas). "
-            "Analiza estos datos:\n\n" + prompt_roblox
+            "Eres un psicólogo experto en videojuegos. "
+            "Analiza brevemente (2 lineas) el comportamiento de este jugador:\n\n" + prompt_roblox
         )
 
         response = model.generate_content(prompt_completo)
         analisis = response.text
 
-        print("✅ Análisis de Gemini generado correctamente")
+        print("✅ Análisis generado correctamente")
         return jsonify({"respuesta": analisis})
 
     except Exception as e:
-        print(f"❌ Error interno: {str(e)}")
+        print(f"❌ Error generando respuesta: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 
