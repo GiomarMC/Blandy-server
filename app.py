@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-import openai
+from openai import OpenAI
 
 import os
 from dotenv import load_dotenv
@@ -8,38 +8,47 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# --- CONFIGURACIÓN ---
-# Pega tu API Key de OpenAI aquí (Empieza con sk-...)
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(
+    api_key=os.environ.get("OPENAI_API_KEY"),
+)
+
+
+@app.route('/')
+def home():
+    return "¡Servidor de IA para Roblox está ACTIVO!", 200
 
 
 @app.route('/analizar_jugador', methods=['POST'])
-def analizar():
-    data = request.json
-    prompt_usuario = data.get('prompt', '')
-
-    print(f"📩 Recibido prompt de Roblox (Longitud: {len(prompt_usuario)})")
-
+def analizar_jugador():
     try:
-        # Enviamos a ChatGPT (Modelo gpt-3.5-turbo o gpt-4)
-        response = openai.ChatCompletion.create(
+        data = request.json
+        prompt_roblox = data.get('prompt', '')
+
+        print(f"📩 Recibido prompt de Roblox (Longitud: {len(prompt_roblox)})")
+
+        if not prompt_roblox:
+            return jsonify({"error": "No se recibió prompt"}), 400
+
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "Eres un analista de comportamiento en un entorno virtual."},
-                {"role": "user", "content": prompt_usuario}
+                {"role": "system", "content": "Eres un psicólogo experto en análisis de comportamiento en videojuegos."},
+                {"role": "user", "content": prompt_roblox}
             ],
-            max_tokens=200
+            max_tokens=150,
+            temperature=0.7
         )
 
-        resultado = response.choices[0].message['content']
-        print("✅ Respuesta generada:", resultado)
+        analisis = response.choices[0].message.content.strip()
 
-        return jsonify({"respuesta": resultado})
+        print("✅ Análisis generado correctamente")
+        return jsonify({"respuesta": analisis})
 
     except Exception as e:
-        print("❌ Error:", e)
-        return jsonify({"respuesta": "Error al conectar con la IA."}), 500
+        print(f"❌ Error interno: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == '__main__':
-    app.run(port=5000)
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port)
